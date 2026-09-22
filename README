@@ -1,1 +1,17 @@
-Project 1 - Initial Commit
+This program simulates a Harvard Mark 1.
+
+It includes a file called emu4480.cpp, which contains implemenations for functions such as:
+
+- fetch()
+- decode()
+- execute()
+
+It also includes the move and arithmetic instructions.
+
+Usage:
+
+Compile with `make` and build the executables with `make cmake`.
+Delete the executables with `make clean`
+
+Run the main program with `Usage: .build/emu4380 <.bin filename> [memory size]`
+Run the test cases with `./runTests`
