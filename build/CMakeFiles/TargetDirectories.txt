@@ -1,0 +1,4 @@
+/mnt/c/Users/tjols/Documents/UVU/CS 4380/p1/build/CMakeFiles/emu4380.dir
+/mnt/c/Users/tjols/Documents/UVU/CS 4380/p1/build/CMakeFiles/runTests.dir
+/mnt/c/Users/tjols/Documents/UVU/CS 4380/p1/build/CMakeFiles/edit_cache.dir
+/mnt/c/Users/tjols/Documents/UVU/CS 4380/p1/build/CMakeFiles/rebuild_cache.dir
