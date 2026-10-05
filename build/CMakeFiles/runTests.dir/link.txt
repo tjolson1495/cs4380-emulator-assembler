@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/runTests.dir/test/tests.cpp.o CMakeFiles/runTests.dir/src/emu4380.cpp.o -o "/mnt/c/Users/tjols/Documents/UVU/CS 4380/p1/runTests"  /usr/lib/x86_64-linux-gnu/libgtest.a 
