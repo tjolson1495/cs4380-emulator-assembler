@@ -1,0 +1,1 @@
+	trp 	#0 			;end program
