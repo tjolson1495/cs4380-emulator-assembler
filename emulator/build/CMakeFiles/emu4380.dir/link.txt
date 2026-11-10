@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/emu4380.dir/src/main.cpp.o CMakeFiles/emu4380.dir/src/emu4380.cpp.o -o "/mnt/c/Users/tjols/Documents/UVU/CS 4380/p1/emu4380" 
