@@ -8,6 +8,7 @@ extern unsigned int reg_file[22];
 extern unsigned char* prog_mem;
 extern unsigned int cntrl_regs[5];
 extern std::string RegnameStrings[];
+extern unsigned int mem_cycle_cntr;
 
 enum RegNames{R0=0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, R15, PC, SL, SB, SP, FP, HP};
 
@@ -49,7 +50,7 @@ bool trp98();
 
 void invalid_instruction(unsigned int address);
 
-// Project Part 3
+// Project 3 Part 1
 bool istr();
 bool ildr();
 bool istb();
@@ -61,5 +62,12 @@ bool blt();
 bool brz();
 bool cmp();
 bool cmpi();
+
+// Project 3 Part 2
+void init_cache(unsigned int cacheType); 
+unsigned char readByte(unsigned int address);
+unsigned int  readWord(unsigned int address);
+void writeByte(unsigned int address, unsigned char byte);
+void writeWord(unsigned int address, unsigned int word);
 
 #endif

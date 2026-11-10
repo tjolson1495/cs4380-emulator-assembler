@@ -1,6 +1,8 @@
 #include <iostream>
+#include <vector>
 
 #include "emu4380.h"
+#include "cache.h"
 
 unsigned int MEM_SIZE;
 unsigned int reg_file[22];
@@ -11,17 +13,28 @@ std::string RegnameStrings[22] = {
     "R10","R11","R12","R13","R14","R15",
     "PC","SL","SB","SP","FP","HP"
 };
+unsigned int mem_cycle_cntr = 0;
+
+Cache* cache_ptr = nullptr;
 
 bool fetch() {
 
     unsigned int addr = reg_file[PC];
-    if (addr + 8 > MEM_SIZE) return false;
+    if (MEM_SIZE < 8 || addr > MEM_SIZE - 8) return false;
 
-    cntrl_regs[OPERATION] = prog_mem[addr];
-    cntrl_regs[OPERAND_1] = prog_mem[addr + 1];
-    cntrl_regs[OPERAND_2] = prog_mem[addr + 2];
-    cntrl_regs[OPERAND_3] = prog_mem[addr + 3];
-    cntrl_regs[IMMEDIATE] = *reinterpret_cast<unsigned int*>(prog_mem + addr + 4);
+    // First word: opcode and the three operand bytes
+    unsigned int first = readWord(addr);
+
+    cntrl_regs[OPERATION] = first & 0xFF;
+    cntrl_regs[OPERAND_1] = (first >> 8) & 0xFF;
+    cntrl_regs[OPERAND_2] = (first >> 16) & 0xFF;
+    cntrl_regs[OPERAND_3] = (first >> 24) & 0xFF;
+
+    // Second word: the immediate. Without a cache, Req11 says the whole
+    // fetch costs 10 (8 + 2), so take 6 back. With a cache, the two word
+    // reads are charged as ordinary cache accesses, with no refund.
+    cntrl_regs[IMMEDIATE] = readWord(addr + 4);
+    if (!cache_ptr) mem_cycle_cntr -= 6;
 
     reg_file[PC] += 8;
 
@@ -157,6 +170,15 @@ bool init_mem(unsigned int size) {
     return true;
 }
 
+void init_cache(unsigned int cacheType) {
+    delete cache_ptr;
+    cache_ptr = nullptr;
+    
+    if (cacheType == 1)      cache_ptr = new DirectMappedCache(CACHE_LINES, CACHE_BLOCK_SIZE);
+    else if (cacheType == 2) cache_ptr = new FullyAssociativeCache(CACHE_LINES, CACHE_BLOCK_SIZE);
+    else if (cacheType == 3) cache_ptr = new TwoWaySetCache(CACHE_LINES, CACHE_BLOCK_SIZE);
+}
+
 bool jmp() { // 1
     reg_file[PC] = cntrl_regs[IMMEDIATE];
 
@@ -229,7 +251,11 @@ bool str() { // 10
     unsigned int RS = cntrl_regs[OPERAND_1];
     unsigned int addr = cntrl_regs[IMMEDIATE];
 
-    *reinterpret_cast<unsigned int*>(prog_mem + addr) = reg_file[RS];
+    if (MEM_SIZE < 4 || addr > MEM_SIZE - 4) {
+        return false;
+    }
+
+    writeWord(addr, reg_file[RS]);
     return true;
 }
 
@@ -237,7 +263,11 @@ bool ldr() { // 11
     unsigned int RD = cntrl_regs[OPERAND_1];
     unsigned int addr = cntrl_regs[IMMEDIATE];
 
-    reg_file[RD] = *reinterpret_cast<unsigned int*>(prog_mem + addr);
+    if (MEM_SIZE < 4 || addr > MEM_SIZE - 4) {
+        return false;
+    }
+
+    reg_file[RD] = readWord(addr);
     return true;
 }
 
@@ -245,7 +275,11 @@ bool stb() { // 12
     unsigned int RS = cntrl_regs[OPERAND_1];
     unsigned int addr = cntrl_regs[IMMEDIATE];
 
-    prog_mem[addr] = reg_file[RS] & 0xFF;
+    if (addr >= MEM_SIZE) {
+        return false;
+    }
+
+    writeByte(addr, reg_file[RS] & 0xFF);
     return true;
 }
 
@@ -253,40 +287,39 @@ bool ldb() { // 13
     unsigned int RD = cntrl_regs[OPERAND_1];
     unsigned int addr = cntrl_regs[IMMEDIATE];
 
-    reg_file[RD] = prog_mem[addr];
+    if (addr >= MEM_SIZE) {
+        return false;
+    }
 
+    reg_file[RD] = readByte(addr);
     return true;
 }
 
 bool istr() { // 14
-
     unsigned int RS = cntrl_regs[OPERAND_1];
     unsigned int RG = cntrl_regs[OPERAND_2];
 
     unsigned int addr = reg_file[RG];
 
-    if (addr > MEM_SIZE - 4 || MEM_SIZE < 4) {
+    if (MEM_SIZE < 4 || addr > MEM_SIZE - 4) {
         return false;
     }
 
-    *reinterpret_cast<unsigned int*>(prog_mem + addr) = reg_file[RS];
-
+    writeWord(addr, reg_file[RS]);
     return true;
 }
 
 bool ildr() { // 15
-
-    unsigned int RS = cntrl_regs[OPERAND_1];
+    unsigned int RD = cntrl_regs[OPERAND_1];
     unsigned int RG = cntrl_regs[OPERAND_2];
 
     unsigned int addr = reg_file[RG];
 
-    if (addr > MEM_SIZE - 4 || MEM_SIZE < 4) {
+    if (MEM_SIZE < 4 || addr > MEM_SIZE - 4) {
         return false;
     }
 
-    reg_file[RS] = *reinterpret_cast<unsigned int*>(prog_mem + addr);
-
+    reg_file[RD] = readWord(addr);
     return true;
 }
 
@@ -301,14 +334,13 @@ bool istb() { // 16
         return false;
     }
 
-    prog_mem[addr] = reg_file[RS];
+    writeByte(addr, reg_file[RS]);
 
     return true;
 }
 
 bool ildb() { // 17
-
-    unsigned int RS = cntrl_regs[OPERAND_1];
+    unsigned int RD = cntrl_regs[OPERAND_1];
     unsigned int RG = cntrl_regs[OPERAND_2];
 
     unsigned int addr = reg_file[RG];
@@ -317,8 +349,7 @@ bool ildb() { // 17
         return false;
     }
 
-    reg_file[RS] = prog_mem[addr];
-
+    reg_file[RD] = readByte(addr);
     return true;
 }
 
@@ -450,6 +481,7 @@ bool cmpi() { // 30
 }
 
 bool trp0() { // 31
+    std::cout << "Execution completed. Total memory cycles: " << mem_cycle_cntr << std::endl;
     std::exit(0);
     return true;
 }
@@ -488,4 +520,38 @@ bool trp98() { // 31
 void invalid_instruction(unsigned int address) {
     std::cout << "INVALID INSTRUCTION AT: " << address << std::endl;
     std::exit(1);
+}
+
+unsigned char readByte(unsigned int address) {
+    if (cache_ptr) return static_cast<unsigned char>(cache_ptr->read(address, 1));
+
+    mem_cycle_cntr += 8;
+    return prog_mem[address];
+}
+
+unsigned int readWord(unsigned int address) {
+    if (cache_ptr) return cache_ptr->read(address, 4);
+
+    mem_cycle_cntr += 8;
+    return  static_cast<unsigned int>(prog_mem[address])
+         | (static_cast<unsigned int>(prog_mem[address + 1]) << 8)
+         | (static_cast<unsigned int>(prog_mem[address + 2]) << 16)
+         | (static_cast<unsigned int>(prog_mem[address + 3]) << 24);
+}
+
+void writeByte(unsigned int address, unsigned char byte) {
+    if (cache_ptr) { cache_ptr->write(address, 1, byte); return; }
+
+    mem_cycle_cntr += 8;
+    prog_mem[address] = byte;
+}
+
+void writeWord(unsigned int address, unsigned int word) {
+    if (cache_ptr) { cache_ptr->write(address, 4, word); return; }
+
+    mem_cycle_cntr += 8;
+    prog_mem[address]     = word & 0xFF;
+    prog_mem[address + 1] = (word >> 8) & 0xFF;
+    prog_mem[address + 2] = (word >> 16) & 0xFF;
+    prog_mem[address + 3] = (word >> 24) & 0xFF;
 }

@@ -9,41 +9,86 @@ using namespace std;
 
 #define DEFAULT_SIZE 131072
 
+void print_usage() {
+    cout << "Usage: .build/emu4380 <.bin filename> [-m memory size] [-c cache type]" << endl;
+}
+
+bool validate_memory(const string& arg, unsigned int& size) {
+
+    // Digits only: rejects signs, spaces, trailing text, and an empty string
+    if (arg.empty() || arg.find_first_not_of("0123456789") != string::npos) {
+        cerr << "Error: memory size must be a positive integer\n";
+        return false;
+    }
+
+    try {
+        unsigned long long parsed = stoull(arg);
+
+        if (parsed == 0 || parsed > 4294967295ULL) {
+            cerr << "Error: memory size must be a positive integer <= 4294967295\n";
+            return false;
+        }
+
+        size = static_cast<unsigned int>(parsed);
+        return true;
+
+    } catch (const out_of_range&) {
+        cerr << "Error: memory size is too large\n";
+        return false;
+    }
+}
+
+// Valid cache types: 0 = none, 1 = direct mapped, 2 = fully associative, 3 = 2-way set associative
+bool validate_cache(const string& arg, unsigned int& cache_type) {
+
+    if (arg.size() != 1 || arg[0] < '0' || arg[0] > '3') {
+        cout << "Invalid cache configuration. Aborting.\n";
+        return false;
+    }
+
+    cache_type = static_cast<unsigned int>(arg[0] - '0');
+    return true;
+}
+
 int main(int argc, char* argv[]) {
 
     if (argc < 2) {
-        cout << "Usage: .build/emu4380 <.bin filename> [memory size]" << endl;
+        print_usage();
         return 1;
     }
 
     string filename = argv[1];
-    unsigned int size;
+    unsigned int size = DEFAULT_SIZE;
+    unsigned int cache_type = 0;            // default: no cache
 
-    if (argc > 2) {
-  
-            try {
-                unsigned long parsed = std::stoul(argv[2]);
+    for (int i = 2; i < argc; i++) {
+        string flag = argv[i];
 
-                if (parsed == 0 || parsed > 4294967295UL) {
-                    std::cerr << "Error: memory size must be a positive integer <= 4294967295\n";
-                    return 1;
-                }
+        if (flag == "-m") {
 
-                size = static_cast<unsigned int>(parsed);
-
-            } catch (const std::invalid_argument&) {
-                std::cerr << "Error: memory size must be a valid integer\n";
+            if (i + 1 >= argc) {            // flag with no value
+                print_usage();
                 return 1;
-            } catch (const std::out_of_range&) {
-                std::cerr << "Error: memory size is too large\n";
-                return 1;
-            } 
+            }
+            if (!validate_memory(argv[++i], size)) return 2;
 
-    } else {
-        size = DEFAULT_SIZE;
+        } else if (flag == "-c") {
+
+            if (i + 1 >= argc) {            // a missing value is an invalid cache configuration
+                cout << "Invalid cache configuration. Aborting.\n";
+                return 2;
+            }
+            if (!validate_cache(argv[++i], cache_type)) return 2;
+
+        } else {                            // unrecognized argument
+            print_usage();
+            return 1;
+        }
     }
 
     init_mem(size);
+    init_cache(cache_type);
+
     ifstream MyReadFile(filename, ios::binary);
 
     if (!MyReadFile.is_open()) {
