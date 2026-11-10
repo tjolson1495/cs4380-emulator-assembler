@@ -339,7 +339,6 @@ def process(filename:str ) -> list[bytes]:
         code_start = sum(len(o) for o in output)
         
     output[0] = code_start.to_bytes(4, byteorder='little')
-    print(os.path.splitext(filename)[0])
     write(output, os.path.splitext(filename)[0] + ".bin")
                           
     return output

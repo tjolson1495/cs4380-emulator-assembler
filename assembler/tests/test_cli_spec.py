@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
  
 TESTS_DIR = Path(__file__).resolve().parent
-DATA_DIR = TESTS_DIR / "data"
+DATA_DIR = TESTS_DIR / "fixtures" / "spec"
  
  
 def find_asm():

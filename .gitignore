@@ -1,0 +1,15 @@
+# Compiled programs and objects
+*.o
+/emulator/emu4380
+/emulator/runTests
+/emulator/build/
+
+# Python caches
+__pycache__/
+.pytest_cache/
+
+# Generated .bin files (assembler output, files the emulator tests write at runtime)
+*.bin
+# ...except the hand-made expected outputs the assembler tests compare against
+!/assembler/tests/fixtures/expected/*.bin
+!/assembler/tests/fixtures/spec/*.bin
